@@ -11,6 +11,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from("fact_check_sessions")
       .select("id, raw_text, status, clarification_round, claim_context, final_result, created_at")
+      .neq("id", "00000000-0000-0000-0000-000000000000")
       .order("created_at", { ascending: false })
       .limit(50);
 

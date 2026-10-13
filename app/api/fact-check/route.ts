@@ -2,15 +2,17 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { RequestSchema } from "@/lib/schemas";
 import { runFactCheck, HttpError } from "@/lib/pipeline";
+import { isApiPaused } from "@/lib/remote-control";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // the pipeline makes several LLM + search calls
 
 export async function POST(req: Request) {
-  // 1. Master Kill-Switch: Instant pause for the entire API
-  if (process.env.PAUSE_API === "true") {
+  // 1. Terminal / Remote Control Kill-Switch
+  const statusCheck = await isApiPaused();
+  if (statusCheck.paused) {
     return NextResponse.json(
-      { error: "Verification service is currently paused by the administrator." },
+      { error: "TruthFace verification API is currently paused by administrator." },
       { status: 503 }
     );
   }
