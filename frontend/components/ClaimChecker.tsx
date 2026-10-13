@@ -68,9 +68,16 @@ export function ClaimChecker({ onSuccess, initialClaim = "", initialResult = nul
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s safety timeout
 
+      const getHeaders = () => {
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        const savedKey = typeof window !== "undefined" ? localStorage.getItem("tf_access_key") : null;
+        if (savedKey) headers["x-access-key"] = savedKey;
+        return headers;
+      };
+
       const res = await fetch("/api/fact-check", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify({ text: claimText.trim() }),
         signal: controller.signal,
       });
@@ -79,6 +86,14 @@ export function ClaimChecker({ onSuccess, initialClaim = "", initialResult = nul
 
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 401) {
+          const userKey = window.prompt("This TruthFace deployment requires an access code. Please enter your secret key:");
+          if (userKey) {
+            localStorage.setItem("tf_access_key", userKey.trim());
+            setError("Access code saved. Click 'Check Claim' again to verify.");
+            return;
+          }
+        }
         throw new Error(data.error || "Failed to process fact-check request.");
       }
 
@@ -107,9 +122,13 @@ export function ClaimChecker({ onSuccess, initialClaim = "", initialResult = nul
         selected: sel,
       }));
 
+      const savedKey = typeof window !== "undefined" ? localStorage.getItem("tf_access_key") : null;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (savedKey) headers["x-access-key"] = savedKey;
+
       const res = await fetch("/api/fact-check", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           sessionId: result.session_id,
           answers: formattedAnswers,
